@@ -47,7 +47,18 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s builtin
-
+    - name: 修复 WALT qc_vas 编译错误
+      run: |
+        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        
+        # 方案A：直接禁用有问题的 NOHZ 相关调用（最简单有效）
+        sed -i 's/NOHZ_KICK_MASK/0/g' kernel/sched/walt/qc_vas.c
+        
+        # 方案B：如果上面不行，尝试注释掉整行
+        # sed -i 's/if (!atomic_fetch_or(NOHZ_KICK_MASK, nohz_flags(cpu)))/#if 0\nif (!atomic_fetch_or(NOHZ_KICK_MASK, nohz_flags(cpu)))/g' kernel/sched/walt/qc_vas.c
+        # sed -i '/nohz_flags(cpu)/a #endif' kernel/sched/walt/qc_vas.c
+        
+        echo "✅ WALT qc_vas 已修复"
     - name: 开启lxc和docker配置
       if: env.ENABLE_LXC_DOCKER == 'true'
       run: |
