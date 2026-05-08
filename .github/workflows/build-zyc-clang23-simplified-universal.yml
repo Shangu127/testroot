@@ -99,7 +99,17 @@ jobs:
         export KBUILD_BUILD_HOST=17
         export KBUILD_BUILD_USER=HyperPower
         
-        make -s -j$(nproc --all) O=out ARCH=arm64 ${{ env.KERNEL_CONFIG }}
+        # ==================== 正确处理 taoyao 配置 ====================
+        mkdir -p out
+        cp arch/arm64/configs/vendor/taoyao_QGKI.config out/.config
+        
+        # 或者使用 merge_config.sh（更推荐，小米官方常用方式）
+        # ./scripts/kconfig/merge_config.sh -O out arch/arm64/configs/defconfig arch/arm64/configs/vendor/taoyao_QGKI.config
+        
+        echo "CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE=y" >> out/.config
+        echo "CONFIG_BUILD_ARM64_KERNEL_COMPRESSION_GZIP=y" >> out/.config
+        
+        make -j$(nproc --all) O=out ARCH=arm64 olddefconfig
         
         if [ ${{env.LLVM_CONFIG}} = y ]; then
           make -j$(nproc --all) CC="ccache clang" CXX=clang++ O=out ARCH=arm64 \
