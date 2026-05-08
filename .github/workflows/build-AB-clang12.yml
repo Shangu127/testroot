@@ -41,10 +41,14 @@ jobs:
         git clone ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} android-kernel --depth=1
 
     # ==================== SukiSU ====================
-    - name: 配置 SukiSU-Ultra (Builtin - 无 SUSFS)
+    - name: 配置 SukiSU-Ultra (Builtin - 禁用 SUSFS)
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        
+        # 强制禁用 SUSFS，避免头文件缺失
         export KSU_SUSFS=n
+        export NO_SUSFS=1
+        
         curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s builtin
 
     # ==================== 配置处理 ====================
