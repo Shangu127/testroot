@@ -53,24 +53,28 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
         
-        # 确保 config 文件存在
         if [ -f "arch/arm64/configs/vendor/taoyao_QGKI.config" ]; then
           CONFIG_FILE="arch/arm64/configs/vendor/taoyao_QGKI.config"
         elif [ -f "arch/arm64/configs/vendor/taoyao_GKI.config" ]; then
           CONFIG_FILE="arch/arm64/configs/vendor/taoyao_GKI.config"
         else
-          echo "❌ 未找到 taoyao config 文件！"
-          ls -l arch/arm64/configs/vendor/
+          echo "❌ 未找到 config 文件"
+          ls -la arch/arm64/configs/vendor/
           exit 1
         fi
         
         echo "✅ 使用配置文件: $CONFIG_FILE"
         
-        # 下载并应用 LXC 配置
-        wget https://github.com/ego-taboo/LXC-DOCKER-KernelSU_Action/releases/download/2.0.0/lxc-docker-config3.txt -O lxc-docker-config3.txt
-        cat lxc-docker-config3.txt >> $CONFIG_FILE
+        wget https://github.com/ego-taboo/LXC-DOCKER-KernelSU_Action/releases/download/2.0.0/lxc-docker-config3.txt -O lxc-docker-config3.txt || \
+        wget https://github.com/ego-taboo/LXC-DOCKER-KernelSU_Action/releases/download/2.0.0/add-lxc-docker-custom3.sh -O add-lxc-docker-custom3.sh
         
-        # 额外常用配置
+        if [ -f "lxc-docker-config3.txt" ]; then
+          cat lxc-docker-config3.txt >> $CONFIG_FILE
+        elif [ -f "add-lxc-docker-custom3.sh" ]; then
+          chmod 755 add-lxc-docker-custom3.sh
+          ./add-lxc-docker-custom3.sh $CONFIG_FILE
+        fi
+        
         echo "# CONFIG_ANDROID_PARANOID_NETWORK is not set" >> $CONFIG_FILE
         echo "CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE=y" >> $CONFIG_FILE
         echo "CONFIG_BUILD_ARM64_KERNEL_COMPRESSION_GZIP=y" >> $CONFIG_FILE
@@ -90,7 +94,24 @@ jobs:
     - name: 修复clang23部分
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        sed -i "s/CONFIG_CC_STACKPROTECTOR_STRONG=y/# CONFIG_CC_STACKPROTECTOR_STRONG is not set/g" arch/arm64/configs/${{ env.KERNEL_CONFIG }}
+        
+        # 自动查找正确的 config 文件
+        if [ -f "arch/arm64/configs/vendor/taoyao_QGKI.config" ]; then
+          CONFIG_FILE="arch/arm64/configs/vendor/taoyao_QGKI.config"
+        elif [ -f "arch/arm64/configs/vendor/taoyao_GKI.config" ]; then
+          CONFIG_FILE="arch/arm64/configs/vendor/taoyao_GKI.config"
+        else
+          echo "❌ 未找到 taoyao config 文件"
+          ls -la arch/arm64/configs/vendor/
+          exit 1
+        fi
+        
+        echo "✅ 找到配置文件: $CONFIG_FILE"
+        
+        # 执行 sed 修复
+        sed -i "s/CONFIG_CC_STACKPROTECTOR_STRONG=y/# CONFIG_CC_STACKPROTECTOR_STRONG is not set/g" $CONFIG_FILE
+        
+        # 下载并运行 clangfix
         wget https://github.com/ego-taboo/LXC-DOCKER-KernelSU_Action/releases/download/1.0.0/clangfix2.sh
         chmod u+x clangfix2.sh
         ./clangfix2.sh
