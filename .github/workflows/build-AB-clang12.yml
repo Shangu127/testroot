@@ -62,11 +62,18 @@ jobs:
           exit 1
         fi
         
-        echo "✅ 使用: $CONFIG_FILE"
+        echo "✅ 使用配置文件: $CONFIG_FILE"
         cp $CONFIG_FILE out/.config
+        
         echo "CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE=y" >> out/.config
         echo "CONFIG_BUILD_ARM64_KERNEL_COMPRESSION_GZIP=y" >> out/.config
         echo "# CONFIG_ANDROID_PARANOID_NETWORK is not set" >> out/.config
+        
+        # ==================== 关键修复：禁用 WALT ====================
+        echo "# CONFIG_SCHED_WALT is not set" >> out/.config
+        echo "CONFIG_SCHED_WALT=n" >> out/.config
+        echo "CONFIG_SCHED_TAOS=n" >> out/.config
+        echo "✅ 已禁用 WALT 调度器（解决 qc_vas 编译错误）"
 
     # ==================== LXC + Docker（已修复） ====================
     - name: 开启 LXC + Docker 配置
@@ -76,18 +83,23 @@ jobs:
         wget -q https://github.com/ego-taboo/LXC-DOCKER-KernelSU_Action/releases/download/2.0.0/lxc-docker-config3.txt -O lxc-docker-config3.txt
         cat lxc-docker-config3.txt >> out/.config
         echo "✅ LXC/Docker 配置已添加"
-
-    - name: 添加 runc 补丁
+        
+    - name: 修复 WALT qc_vas 编译错误
       run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace
-        wget https://github.com/ego-taboo/LXC-DOCKER-KernelSU_Action/releases/download/1.0.0/runcpatch.sh
-        chmod a+x runcpatch.sh
-        if [ -f android-kernel/kernel/cgroup.c ]; then
-          ./runcpatch.sh android-kernel/kernel/cgroup.c
-        fi
-        if [ -f android-kernel/kernel/cgroup/cgroup.c ]; then
-          ./runcpatch.sh android-kernel/kernel/cgroup/cgroup.c
-        fi
+        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        sed -i 's/NOHZ_KICK_MASK/0/g' kernel/sched/walt/qc_vas.c || true
+        echo "✅ WALT qc_vas 已打修复补丁"
+        - name: 添加 runc 补丁
+          run: |
+            cd $GITHUB_WORKSPACE/kernel_workspace
+            wget https://github.com/ego-taboo/LXC-DOCKER-KernelSU_Action/releases/download/1.0.0/runcpatch.sh
+            chmod a+x runcpatch.sh
+            if [ -f android-kernel/kernel/cgroup.c ]; then
+              ./runcpatch.sh android-kernel/kernel/cgroup.c
+            fi
+            if [ -f android-kernel/kernel/cgroup/cgroup.c ]; then
+              ./runcpatch.sh android-kernel/kernel/cgroup/cgroup.c
+            fi
 
     - name: 设置 ccache
       uses: hendrikmuhs/ccache-action@v1.2
