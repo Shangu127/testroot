@@ -87,19 +87,22 @@ jobs:
     - name: 修复 WALT qc_vas 编译错误
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        sed -i 's/NOHZ_KICK_MASK/0/g' kernel/sched/walt/qc_vas.c || true
-        echo "✅ WALT qc_vas 已打修复补丁"
-        - name: 添加 runc 补丁
-          run: |
-            cd $GITHUB_WORKSPACE/kernel_workspace
-            wget https://github.com/ego-taboo/LXC-DOCKER-KernelSU_Action/releases/download/1.0.0/runcpatch.sh
-            chmod a+x runcpatch.sh
-            if [ -f android-kernel/kernel/cgroup.c ]; then
-              ./runcpatch.sh android-kernel/kernel/cgroup.c
-            fi
-            if [ -f android-kernel/kernel/cgroup/cgroup.c ]; then
-              ./runcpatch.sh android-kernel/kernel/cgroup/cgroup.c
-            fi
+        
+        WALT_FILE="kernel/sched/walt/qc_vas.c"
+        if [ -f "$WALT_FILE" ]; then
+          echo "✅ 找到 $WALT_FILE，正在打修复补丁..."
+          
+          # 方案1：替换问题宏和函数
+          sed -i 's/NOHZ_KICK_MASK/0/g' "$WALT_FILE"
+          sed -i 's/nohz_flags(cpu)/0/g' "$WALT_FILE"
+          
+          # 方案2：直接注释掉问题行（备用）
+          sed -i '/atomic_fetch_or.*NOHZ_KICK_MASK/s/^/\/\//' "$WALT_FILE"
+          
+          echo "✅ WALT 修复完成"
+        else
+          echo "⚠️ qc_vas.c 不存在，跳过"
+        fi
 
     - name: 设置 ccache
       uses: hendrikmuhs/ccache-action@v1.2
