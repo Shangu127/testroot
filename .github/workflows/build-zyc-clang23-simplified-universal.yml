@@ -51,11 +51,29 @@ jobs:
     - name: 开启lxc和docker配置
       if: env.ENABLE_LXC_DOCKER == 'true'
       run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace
-        wget https://github.com/ego-taboo/LXC-DOCKER-KernelSU_Action/releases/download/2.0.0/add-lxc-docker-custom3.sh
-        chmod 755 add-lxc-docker-custom3.sh
-        ./add-lxc-docker-custom3.sh android-kernel/arch/arm64/configs/${{ env.KERNEL_CONFIG }}
-        echo "# CONFIG_ANDROID_PARANOID_NETWORK is not set" >> android-kernel/arch/arm64/configs/${{ env.KERNEL_CONFIG }}
+        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        
+        # 确保 config 文件存在
+        if [ -f "arch/arm64/configs/vendor/taoyao_QGKI.config" ]; then
+          CONFIG_FILE="arch/arm64/configs/vendor/taoyao_QGKI.config"
+        elif [ -f "arch/arm64/configs/vendor/taoyao_GKI.config" ]; then
+          CONFIG_FILE="arch/arm64/configs/vendor/taoyao_GKI.config"
+        else
+          echo "❌ 未找到 taoyao config 文件！"
+          ls -l arch/arm64/configs/vendor/
+          exit 1
+        fi
+        
+        echo "✅ 使用配置文件: $CONFIG_FILE"
+        
+        # 下载并应用 LXC 配置
+        wget https://github.com/ego-taboo/LXC-DOCKER-KernelSU_Action/releases/download/2.0.0/lxc-docker-config3.txt -O lxc-docker-config3.txt
+        cat lxc-docker-config3.txt >> $CONFIG_FILE
+        
+        # 额外常用配置
+        echo "# CONFIG_ANDROID_PARANOID_NETWORK is not set" >> $CONFIG_FILE
+        echo "CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE=y" >> $CONFIG_FILE
+        echo "CONFIG_BUILD_ARM64_KERNEL_COMPRESSION_GZIP=y" >> $CONFIG_FILE
 
     - name: 添加runc补丁
       run: |
